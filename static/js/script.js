@@ -20,6 +20,8 @@ const nftImage = document.getElementById("file-input");
 const err = document.getElementById("error");
 const success = document.getElementById("success");
 const pinata = document.getElementById("pinata-link");
+const upload = document.getElementById("upload");
+const uploadbtn = document.getElementById("btn-upload");
 
 const defaultFrozen = false;
 const unitName = "NFT";
@@ -68,6 +70,9 @@ const transferChoice = async () => {
         if (sendTxn) {
           success.textContent = "Choice sent!, You can now generate NFT";
           success.classList.remove("d-none");
+          upload.setAttribute("onclick", "generateNFT()");
+          uploadbtn.disabled = false;
+          uploadbtn.removeAttribute("style");
           setTimeout(() => {
             success.classList.add("d-none");
           }, 1000);
@@ -82,6 +87,9 @@ const transferChoice = async () => {
         if (response) {
           success.textContent = "Choice sent!, You can now generate NFT";
           success.classList.remove("d-none");
+          upload.setAttribute("onclick", "generateNFT()");
+          uploadbtn.disabled = false;
+          uploadbtn.removeAttribute("style");
           setTimeout(() => {
             success.classList.add("d-none");
           }, 1000);
