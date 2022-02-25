@@ -1,3 +1,11 @@
+const server = "https://testnet-algorand.api.purestake.io/ps2";
+const token = {
+  "X-API-Key": "EaUlAQzl9Z831PDt5GTxV7fMjYk9CsSK2VmERE4T",
+};
+
+const port = "";
+const algoClient = new algosdk.Algodv2(token, server, port);
+
 function myFunction() {
   TextToCopy = connectedAddress;
   var TempText = document.createElement("input");
@@ -15,172 +23,217 @@ $(function () {
   });
 });
 
-const nftName = document.getElementById("nft_name");
-const nftImage = document.getElementById("file-input");
+let connectedAddress;
 const err = document.getElementById("error");
 const success = document.getElementById("success");
-const pinata = document.getElementById("pinata-link");
-const upload = document.getElementById("upload");
-const uploadbtn = document.getElementById("btn-upload");
+const address1 = "IHFYDNOXHI5GOMVUYGWL6WBG6C3PLNWHH22GJKJMV6JKLUJX5YAD6EEHPY";
+const address2 = "MYTNPFZCPLBE7K6OWK4UY3FO3ZML7KJLTCWJWOJ2GJION2HR2CNMUDFS2A";
+const addresses = [address1, address2];
+const balances = [];
+let isloading = true;
+const getWalletType = localStorage.getItem("wallet-type");
+const lastInfo = localStorage.getItem("Transaction Id");
+!lastInfo
+  ? (document.getElementById("txId").textContent =
+      "Carry out your first Transaction to display Info...")
+  : (document.getElementById("txId").textContent = lastInfo);
 
-const defaultFrozen = false;
-const unitName = "NFT";
-let assetName;
-const url = `${asset_url}`;
-const managerAddr =
-  "ZU7NJ2X2XNELIGJBUW57PETCEK4HXHL2FJKOP2DRRWWBYH2B2JPI2WDA34";
-const reserveAddr = undefined;
-const freezeAddr = undefined;
-const clawbackAddr = undefined;
-const metadata = undefined;
-const total = 1; // NFTs have totalIssuance of exactly 1
-const decimals = 0; // NFTs have decimals of exactly 0
-const address_1 = "IHFYDNOXHI5GOMVUYGWL6WBG6C3PLNWHH22GJKJMV6JKLUJX5YAD6EEHPY";
-let connectedAddress;
+let txns = [];
+let base64Txns = [];
+let Txns = [];
 
-const transferChoice = async () => {
+const generateAccount = () => {
+  try {
+    const { addr, sk } = algosdk.generateAccount();
+    const mnemonic = algosdk.secretKeyToMnemonic(sk);
+    document.getElementById("address").textContent = addr;
+    document.getElementById("mnemonic").textContent = mnemonic;
+    document.getElementById("generated").classList.remove("d-none");
+  } catch (error) {
+    console.log(error.message);
+    return false;
+  }
+};
+
+const loader = () => {
+  if (isloading) {
+    document.getElementById("spinner-box").innerHTML =
+      "<div class='loader'>Loading...</div>";
+  } else {
+    document.getElementById("spinner-box").innerHTML =
+      '<button onclick="myAlgoSignerSign()" class="btn btn-dark" id="spinner">Send</button>';
+  }
+};
+
+// get balance of the two addresses
+const getBalance = async () => {
+  for (address of addresses) {
+    const accountInfo = await algoClient.accountInformation(address).do();
+    balances.push(parseFloat(accountInfo["amount"] / 1000000).toFixed(2));
+    document.getElementById("balance1").textContent = balances[0] + " $Algo";
+    document.getElementById("balance2").textContent = balances[1] + " $Algo";
+  }
+};
+getBalance();
+const loadAddresses = () => {
+  document.getElementById("address1").textContent = address1;
+  document.getElementById("address2").textContent = address2;
+  document.getElementsByClassName("load")[0].classList.add("d-flex");
+};
+
+const myAlgoSignerSign = async () => {
+  loader();
   if (!connectedAddress) {
-    err.innerHTML = "Connect Wallet !!!!";
+    err.textContent = "Connect Wallet and Try Again";
     err.classList.remove("d-none");
     setTimeout(() => {
       err.classList.add("d-none");
-    }, 1000);
+    }, 1500);
+    isloading = false;
+    loader();
+    isloading = true;
   } else {
-    let params = await algodClient.getTransactionParams().do();
-    let encoder = new TextEncoder();
-    try {
-      let txn = await algosdk.makeAssetTransferTxnWithSuggestedParams(
-        connectedAddress,
-        address_1,
-        undefined,
-        undefined,
-        1,
-        encoder.encode("Send Choice coin"),
-        ASSET_ID,
-        params
-      );
-      // If Algosigner account is connected, Use the AlgoSigner extension to make the transactions base64
-      try {
-        const txn_b64 = AlgoSigner.encoding.msgpackToBase64(txn.toByte());
-        let signedTxn = await AlgoSigner.signTxn([{ txn: txn_b64 }]);
-        let sendTxn = await AlgoSigner.send({
-          ledger: "TestNet",
-          tx: signedTxn[0].blob,
+    let amount = Number(document.getElementById("amount").value); // Enter the amount of Choice
+    if (addresses) {
+      const params = await algoClient.getTransactionParams().do();
+      for (address of addresses) {
+        let transaction = new algosdk.Transaction({
+          to: address,
+          from: connectedAddress,
+          amount: parseInt(amount * 1000000),
+          suggestedParams: params,
         });
-        if (sendTxn) {
-          success.textContent = "Choice sent!, You can now generate NFT";
-          success.classList.remove("d-none");
-          upload.setAttribute("onclick", "generateNFT()");
-          uploadbtn.disabled = false;
-          uploadbtn.removeAttribute("style");
-          setTimeout(() => {
-            success.classList.add("d-none");
-          }, 1000);
-        }
-      } catch {
-        // else if myAlgoWallet is connected, sign the transaction using..
-        const signedTxn = await myAlgoConnect.signTransaction(txn.toByte());
-        let response = await algodClient
-          .sendRawTransaction(signedTxn.blob)
-          .do();
-
-        if (response) {
-          success.textContent = "Choice sent!, You can now generate NFT";
-          success.classList.remove("d-none");
-          upload.setAttribute("onclick", "generateNFT()");
-          uploadbtn.disabled = false;
-          uploadbtn.removeAttribute("style");
-          setTimeout(() => {
-            success.classList.add("d-none");
-          }, 1000);
-        }
+        txns.push(transaction);
       }
-    } catch (error) {
-      err.textContent = "Error Sending $choice before generating NFT ";
-      err.classList.remove("d-none");
-      setTimeout(() => {
-        err.classList.add("d-none");
-      }, 2000);
-      console.log(error);
+    }
+    await algosdk.assignGroupID(txns);
+    // If Algosigner account is connected, Use the AlgoSigner extension to make the transactions base64
+    if (getWalletType === "algosigner") {
+      try {
+        txns.map((transaction) => {
+          base64Txns.push({
+            txn: AlgoSigner.encoding.msgpackToBase64(transaction.toByte()),
+          });
+        });
+
+        const signedTxn = await AlgoSigner.signTxn(base64Txns);
+        const binarySignedTx = signedTxn.map((txn) =>
+          AlgoSigner.encoding.base64ToMsgpack(txn.blob)
+        );
+        const response = await algoClient
+          .sendRawTransaction(binarySignedTx)
+          .do();
+        const confirmedTxn = await waitForConfirmation(response.txId, 4);
+        if (response) {
+          success.textContent = "Transaction Successful";
+          success.classList.remove("d-none");
+          setTimeout(() => {
+            success.classList.add("d-none");
+          }, 1500);
+        }
+        isloading = false;
+        loader();
+        console.log("Txns", txns);
+        localStorage.setItem("Transaction Id", JSON.stringify(response));
+        document.getElementById("txId").textContent = lastInfo;
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 2000);
+      } catch (error) {
+        console.log(error.message);
+        err.textContent = "Transaction Failed, try again";
+        err.classList.remove("d-none");
+        setTimeout(() => {
+          err.classList.add("d-none");
+          window.location.href = "/";
+        }, 1500);
+        isloading = false;
+        loader();
+      }
+    } else {
+      try {
+        // else if myAlgoWallet is connected, sign the transaction using..
+        txns.map((txn) => {
+          Txns.push(txn.toByte());
+        });
+        const signedTxn = await myAlgoConnect.signTransaction(Txns);
+        const SignedTx = signedTxn.map((txn) => {
+          return txn.blob;
+        });
+        response = await algodClient.sendRawTransaction(SignedTx).do();
+        const confirmedTxn = await waitForConfirmation(response.txId, 4);
+        if (response) {
+          success.textContent = "Transaction Successful";
+          success.classList.remove("d-none");
+          setTimeout(() => {
+            success.classList.add("d-none");
+          }, 1500);
+        }
+        isloading = false;
+        loader();
+        localStorage.setItem("Transaction Id", JSON.stringify(response));
+        document.getElementById("txId").textContent = lastInfo;
+        setTimeout(() => {
+          window.location.href = "/";
+        }, 2000);
+      } catch (error) {
+        err.textContent = "Transaction Failed, try again";
+        err.classList.remove("d-none");
+        setTimeout(() => {
+          err.classList.add("d-none");
+          window.location.href = "/";
+        }, 1500);
+        isloading = false;
+        loader();
+      }
     }
   }
 };
 
-const generateNFT = async () => {
-  if (!connectedAddress) {
-    err.textContent = "Connect your wallet !!!";
-    err.classList.remove("d-none");
-    setTimeout(() => {
-      err.classList.add("d-none");
-    }, 1000);
-  } else if (!nftName.value) {
-    err.textContent = "Please enter the name of your NFT";
-    err.classList.remove("d-none");
-    setTimeout(() => {
-      err.classList.add("d-none");
-    }, 1000);
-  } else if (!nftImage.value) {
-    err.textContent = "Please Upload an Image";
-    err.classList.remove("d-none");
-    setTimeout(() => {
-      err.classList.add("d-none");
-    }, 1000);
-  } else {
-    // Construct the transaction
-    assetName = nftName.value;
-    const params = await algodClient.getTransactionParams().do();
-    const txn = algosdk.makeAssetCreateTxnWithSuggestedParamsFromObject({
-      from: connectedAddress,
-      total,
-      decimals,
-      assetName,
-      unitName,
-      assetURL: url,
-      assetMetadataHash: metadata,
-      defaultFrozen,
-      freeze: freezeAddr,
-      manager: managerAddr,
-      clawback: clawbackAddr,
-      reserve: reserveAddr,
-      suggestedParams: params,
-    });
-    // If Algosigner account is connected, Use the AlgoSigner extension to make the transactions base64
-    try {
-      const txn_b64 = AlgoSigner.encoding.msgpackToBase64(txn.toByte());
-      let signedTxn = await AlgoSigner.signTxn([{ txn: txn_b64 }]);
-      let sendTxn = await AlgoSigner.send({
-        ledger: "TestNet",
-        tx: signedTxn[0].blob,
-      });
-      if (sendTxn) {
-        success.textContent = `On Chain NFT Generated, TxID: ${sendTxn.txId}`;
-        success.classList.remove("d-none");
-        pinata.textContent = `This is your generated NFT Link: ${asset_url}`;
-        pinata.classList.remove("d-none");
-      } else {
-        err.textContent = "Error Generating NFT";
-        err.classList.remove("d-none");
-        setTimeout(() => {
-          err.classList.add("d-none");
-        }, 1000);
-      }
-    } catch {
-      // else if myAlgoWallet is connected, sign the transaction using..
-      const signedTxn = await myAlgoConnect.signTransaction(txn.toByte());
-      let response = await algodClient.sendRawTransaction(signedTxn.blob).do();
+const waitForConfirmation = async function (txId, timeout) {
+  if (algoClient == null || txId == null || timeout < 0) {
+    throw new Error("Bad arguments");
+  }
 
-      if (response) {
-        success.textContent = `On Chain NFT Generated, TxID: ${response.txId}`;
-        success.classList.remove("d-none");
-        pinata.textContent = `This is your generated NFT Link: ${asset_url}`;
-        pinata.classList.remove("d-none");
+  const status = await algoClient.status().do();
+  if (status === undefined) {
+    throw new Error("Unable to get node status");
+  }
+
+  const startround = status["last-round"] + 1;
+  let currentround = startround;
+
+  while (currentround < startround + timeout) {
+    const pendingInfo = await algoClient
+      .pendingTransactionInformation(txId)
+      .do();
+    if (pendingInfo !== undefined) {
+      if (
+        pendingInfo["confirmed-round"] !== null &&
+        pendingInfo["confirmed-round"] > 0
+      ) {
+        //Got the completed Transaction
+        return pendingInfo;
       } else {
-        err.textContent = "Error Generating NFT";
-        err.classList.remove("d-none");
-        setTimeout(() => {
-          err.classList.add("d-none");
-        }, 1000);
+        if (
+          pendingInfo["pool-error"] != null &&
+          pendingInfo["pool-error"].length > 0
+        ) {
+          // If there was a pool error, then the transaction has been rejected!
+          throw new Error(
+            "Transaction " +
+              txId +
+              " rejected - pool error: " +
+              pendingInfo["pool-error"]
+          );
+        }
       }
     }
+    await algoClient.statusAfterBlock(currentround).do();
+    currentround++;
   }
+
+  throw new Error(
+    "Transaction " + txId + " not confirmed after " + timeout + " rounds!"
+  );
 };

@@ -30,6 +30,10 @@ NFTs are created using Algorand Standard Assets (ASAs), which are built into the
 
 - check video on [here](https://www.awesomescreenshot.com/video/7082696?key=34edd796f5c8c3a1f75f9b2b9e914fa9)
 
+## check Live link
+
+- check Live link [here](https://limitless-badlands-35979.herokuapp.com/)
+
 ## Functionalities
 
 - [x] User has to connect his algorand wallet
